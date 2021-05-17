@@ -18,6 +18,7 @@
 #  - inspect Cincinatti graph to determine previously released version
 #  - store data in sqlite database
 #  - containerize
+#  - better handling of read files (i.e. choose location)
 
 import argparse
 import json
@@ -28,9 +29,9 @@ import subprocess
 import requests
 from requests_kerberos import HTTPKerberosAuth
 
-OCP_RELEASE_PAYLOAD = "quay.io/openshift-release-dev/ocp-release"
-CM_BASE_URL = "https://rhcos-redirector.ci.openshift.org/art/storage/releases/"
-BZ_BASE_URL = "https://bugzilla.redhat.com/"
+OCP_RELEASE_URI = "quay.io/openshift-release-dev/ocp-release"
+CM_BASE_URI = "https://rhcos-redirector.ci.openshift.org/art/storage/releases/"
+BZ_BASE_URI = "https://bugzilla.redhat.com/"
 
 
 def run_command(cmd):
@@ -82,7 +83,7 @@ def get_rhcos_version(ocp_version, arch=None, oc_binary=None):
         raise SystemExit(1)
 
     # retrive the machine-os-content spec
-    release_payload = OCP_RELEASE_PAYLOAD + ":" + ocp_version + "-" + arch
+    release_payload = OCP_RELEASE_URI + ":" + ocp_version + "-" + arch
     moc_cmd = [oc_binary, "adm", "release", "info",
                "--image-for=machine-os-content", release_payload]
 
@@ -108,7 +109,7 @@ def get_commitmeta(version, baseurl=None, arch=None):
         arch (string): Architecture of the RHCOS version
     '''
     if baseurl is None:
-        baseurl = CM_BASE_URL
+        baseurl = CM_BASE_URI
 
     if arch is None:
         arch = "x86_64"
@@ -119,7 +120,7 @@ def get_commitmeta(version, baseurl=None, arch=None):
     ocp_ver = version.split('.')[0]
     rhcos_dir = "rhcos-" + ocp_ver[0] + "." + ocp_ver[1]
     # not strictly safe for URLs, but should work well enough
-    cm_url = os.path.join(CM_BASE_URL, rhcos_dir,
+    cm_url = os.path.join(CM_BASE_URI, rhcos_dir,
                           version, arch, "commitmeta.json")
 
     cm_req = requests.get(cm_url)
@@ -210,7 +211,7 @@ def get_bz_description(bug, bz_api_key):
         bug (string): A Bugzilla ID
         bz_api_key (string): An API key for Bugzilla
     '''
-    bz_url = "{}{}{}".format(BZ_BASE_URL, "rest/bug/", bug)
+    bz_url = "{}{}{}".format(BZ_BASE_URI, "rest/bug/", bug)
     payload = {'api_key': bz_api_key}
     bz_req = requests.get(bz_url, params=payload)
     if not bz_req.ok:
